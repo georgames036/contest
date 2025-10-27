@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>競技プログラミングサイト</title>
+<style>
+body { font-family: sans-serif; margin: 20px; }
+h1,h2 { margin-bottom: 5px; }
+textarea { width: 100%; font-family: monospace; }
+button { margin-top: 10px; padding: 5px 10px; }
+pre { background: #f0f0f0; padding: 10px; }
+.problem-list { margin-bottom: 20px; }
+.subproblem { margin-left: 20px; cursor: pointer; color: blue; text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<h1>競技プログラミングサイト</h1>
+<div id="problem-list" class="problem-list"></div>
+
+<hr>
+
+<div id="problem-area" style="display:none;">
+  <h2 id="problem-title"></h2>
+  <pre id="problem-desc"></pre>
+  <h3>サンプル入力・出力</h3>
+  <div id="samples"></div>
+  <h3>コードを入力</h3>
+  <textarea id="code" rows="10">// main関数を定義してください
+// 例: 
+// function main(input, console){
+//   const [a,b]=[input(),input()];
+//   console.log(a+b);
+// }
+</textarea><br>
+  <button id="submit">提出</button>
+  <pre id="result"></pre>
+</div>
+
+<script>
+// -------------------- 問題データ --------------------
+const problems = [
+  {
+    id: 1,
+    title: "第1問",
+    subproblems: [
+      {
+        id: "A",
+        title: "A - 足し算",
+        description: "2つの整数を足す問題です。",
+        samples: [
+          {input: "1\n2", output: "3"},
+          {input: "10\n20", output: "30"}
+        ],
+        tests: [
+          {input: "5\n7", output: "12"},
+          {input: "100\n200", output: "300"},
+          {input: "0\n0", output: "0"},
+          {input: "-1\n1", output: "0"},
+          {input: "123\n456", output: "579"},
+          {input: "7\n8", output: "15"},
+          {input: "50\n50", output: "100"},
+          {input: "99\n1", output: "100"},
+          {input: "13\n14", output: "27"},
+          {input: "33\n44", output: "77"}
+        ]
+      }
+    ]
+  },
+  {
+    id: 2,
+    title: "第2問",
+    subproblems: [
+      {
+        id: "A",
+        title: "A - 掛け算",
+        description: "2つの整数を掛ける問題です。",
+        samples: [
+          {input: "2\n3", output: "6"},
+          {input: "10\n20", output: "200"}
+        ],
+        tests: [
+          {input: "5\n7", output: "35"},
+          {input: "100\n200", output: "20000"},
+          {input: "0\n5", output: "0"},
+          {input: "-1\n1", output: "-1"},
+          {input: "3\n3", output: "9"},
+          {input: "7\n8", output: "56"},
+          {input: "50\n50", output: "2500"},
+          {input: "9\n11", output: "99"},
+          {input: "13\n14", output: "182"},
+          {input: "33\n44", output: "1452"}
+        ]
+      }
+    ]
+  }
+];
+
+// -------------------- 問題一覧表示 --------------------
+const problemListDiv = document.getElementById("problem-list");
+problems.forEach(p => {
+  const div = document.createElement("div");
+  div.innerHTML = `<strong>${p.title}</strong>`;
+  problemListDiv.appendChild(div);
+  p.subproblems.forEach(sp => {
+    const spDiv = document.createElement("div");
+    spDiv.className = "subproblem";
+    spDiv.innerText = `${sp.id} - ${sp.title}`;
+    spDiv.onclick = () => showProblem(p.id, sp.id);
+    div.appendChild(spDiv);
+  });
+});
+
+// -------------------- 問題表示 --------------------
+let currentProblem = null;
+function showProblem(problemId, subId) {
+  const p = problems.find(x=>x.id===problemId);
+  const sp = p.subproblems.find(x=>x.id===subId);
+  currentProblem = sp;
+  document.getElementById("problem-title").innerText = `${p.title} ${sp.id} - ${sp.title}`;
+  document.getElementById("problem-desc").innerText = sp.description;
+
+  const samplesDiv = document.getElementById("samples");
+  samplesDiv.innerHTML = "";
+  sp.samples.forEach((s,i) => {
+    samplesDiv.innerHTML += `<b>サンプル${i+1}</b>\n入力:\n${s.input}\n出力:\n${s.output}\n\n`;
+  });
+
+  document.getElementById("problem-area").style.display = "block";
+  document.getElementById("result").innerText = "";
+  document.getElementById("code").value = "// main関数を定義してください\n";
+}
+
+// -------------------- 提出判定 --------------------
+function runCode(userCode, input) {
+  const consoleLog = [];
+  const console = {log: x=>consoleLog.push(x)};
+  const lines = input.split(/\r?\n/).map(s=>s.trim()).filter(s=>s!=="");
+  const inputFunc = () => {
+    const val = lines.shift();
+    if(val === undefined) return "";
+    const n = Number(val);
+    return isNaN(n) ? val : n;
+  };
+  try {
+    const func = new Function("input","console", userCode + "\nmain(input, console);");
+    func(inputFunc, console);
+  } catch(e) {
+    return {error:e.toString()};
+  }
+  return {output: consoleLog.join("\n")};
+}
+
+document.getElementById("submit").onclick = () => {
+  if(!currentProblem) return alert("問題を選択してください");
+  const code = document.getElementById("code").value;
+  let ac = 0;
+  let wa = 0;
+  const allTests = currentProblem.samples.concat(currentProblem.tests);
+  allTests.forEach(t=>{
+    const res = runCode(code, t.input);
+    if(res.error) {
+      wa++;
+    } else if(res.output.trim()===t.output.trim()) {
+      ac++;
+    } else {
+      wa++;
+    }
+  });
+  document.getElementById("result").innerText = `AC: ${ac}, WA: ${wa}`;
+};
+</script>
+
+</body>
+</html>
